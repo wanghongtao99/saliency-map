@@ -8,7 +8,6 @@ import math
 import itertools
 import cv2 as cv
 import numpy as np
-from utils import OpencvIo
 from utils import Util
 
 
@@ -102,8 +101,6 @@ class ConspicuityMap:
         orientation = np.zeros(intensity.shape)
         for key in srcs['orientations'].keys():
             orientation += self.__scale_add(map(util.normalize, srcs['orientations'][key]))
-        oi = OpencvIo()
-        oi.imshow_array([intensity, color, orientation])
         return {'intensity': intensity, 'color': color, 'orientation': orientation}
 
     def __scale_add(self, srcs):
