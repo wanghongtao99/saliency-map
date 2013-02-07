@@ -45,16 +45,17 @@ class OpencvIo:
 
 class Util:
     def normalize_range(self, src, begin=0, end=255):
+        dst = np.zeros((len(src), len(src[0])))
         amin, amax = np.amin(src), np.amax(src)
         for y, x in itertools.product(xrange(len(src)), xrange(len(src[0]))):
             if amin != amax:
-                src[y][x] = (src[y][x] - amin) * (end - begin) / (amax - amin) + begin
+                dst[y][x] = (src[y][x] - amin) * (end - begin) / (amax - amin) + begin
             else:
-                src[y][x] = (end + begin) / 2
-        return src
+                dst[y][x] = (end + begin) / 2
+        return dst
 
     def normalize(self, src):
-        self.normalize_range(src, 0., 1.)
+        src = self.normalize_range(src, 0., 1.)
         amax = np.amax(src)
         maxs = []
 

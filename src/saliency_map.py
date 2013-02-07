@@ -18,8 +18,8 @@ class GaussianPyramid:
     def __make_gaussian_pyramid(self, src):
         # gaussian pyramid | 0 ~ 8(1/256) . not use 0 and 1.
         maps = {'intensity': [],
-                      'colors': {'b': [], 'g': [], 'r': [], 'y': []},
-                      'orientations': {'0': [], '45': [], '90': [], '135': []}}
+                'colors': {'b': [], 'g': [], 'r': [], 'y': []},
+                'orientations': {'0': [], '45': [], '90': [], '135': []}}
         amax = np.amax(src)
         b, g, r = cv.split(src)
         for x in xrange(9):
@@ -32,9 +32,9 @@ class GaussianPyramid:
                 buf_its[y][x] = self.__get_intensity(b[y][x], g[y][x], r[y][x])
                 buf_colors[0][y][x], buf_colors[1][y][x], buf_colors[2][y][x], buf_colors[3][y][x] = self.__get_colors(b[y][x], g[y][x], r[y][x], buf_its[y][x], amax)
             maps['intensity'].append(buf_its)
-            for (color, index) in zip(maps['colors'].keys(), xrange(4)):
+            for (color, index) in zip(sorted(maps['colors'].keys()), xrange(4)):
                 maps['colors'][color].append(buf_colors[index])
-            for (orientation, index) in zip(maps['orientations'].keys(), xrange(4)):
+            for (orientation, index) in zip(sorted(maps['orientations'].keys()), xrange(4)):
                 maps['orientations'][orientation].append(self.__conv_gabor(buf_its, np.pi * index / 4))
         return maps
 
@@ -65,8 +65,8 @@ class FeatureMap:
         # index of 0 ~ 6 is meaned 2 ~ 8 in thesis (Ich)
         cs_index = ((0, 3), (0, 4), (1, 4), (1, 5), (2, 5), (2, 6))
         maps = {'intensity': [],
-                      'colors': {'bg': [], 'ry': []},
-                      'orientations': {'0': [], '45': [], '90': [], '135': []}}
+                'colors': {'bg': [], 'ry': []},
+                'orientations': {'0': [], '45': [], '90': [], '135': []}}
 
         for c, s in cs_index:
             maps['intensity'].append(self.__scale_diff(srcs['intensity'][c], srcs['intensity'][s]))
@@ -112,10 +112,10 @@ class ConspicuityMap:
 
 class SaliencyMap:
     def __init__(self, src):
-        gp = GaussianPyramid(src)
-        fm = FeatureMap(gp.maps)
-        cm = ConspicuityMap(fm.maps)
-        self.map = cv.resize(self.__make_saliency_map(cm.maps), tuple(reversed(src.shape[0:2])))
+        self.gp = GaussianPyramid(src)
+        self.fm = FeatureMap(self.gp.maps)
+        self.cm = ConspicuityMap(self.fm.maps)
+        self.map = cv.resize(self.__make_saliency_map(self.cm.maps), tuple(reversed(src.shape[0:2])))
 
     def __make_saliency_map(self, srcs):
         util = Util()

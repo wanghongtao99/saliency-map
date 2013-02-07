@@ -10,3 +10,4 @@ if __name__ == "__main__":
     src = oi.imread(sys.argv[1])
     sm = SaliencyMap(src)
     oi.imshow_array([sm.map])
+    #cv.imwrite('out.png', sm.map)
