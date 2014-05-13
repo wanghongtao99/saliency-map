@@ -23,14 +23,21 @@ class GaussianPyramid:
         amax = np.amax(src)
         b, g, r = cv.split(src)
         for x in xrange(1, 9):
+            # 一半一半往下砍, 呈金字塔形。
             b, g, r = map(cv.pyrDown, [b, g, r])
-            if x < 2:
+            if x < 2: # x < 2的时候，图像还很大，不管它？
                 continue
+            # buf_its, its 表示 intensity, 亮度。初始化为全0
             buf_its = np.zeros(b.shape)
+            # buf_colors, 4个全0矩阵构成的List
+            #   _ 被抛弃的变量，就是说参数不要的意思。
+            #   可能是这样的，想执行4次，只能用range(4)来map的形式，所以它就只能接收参数。
+            #   但参数又没用，为了显式告诉大家参数没用，就用 _ 了
             buf_colors = map(lambda _: np.zeros(b.shape), range(4))  # b, g, r, y
             for y, x in itertools.product(xrange(len(b)), xrange(len(b[0]))):
                 buf_its[y][x] = self.__get_intensity(b[y][x], g[y][x], r[y][x])
                 buf_colors[0][y][x], buf_colors[1][y][x], buf_colors[2][y][x], buf_colors[3][y][x] = self.__get_colors(b[y][x], g[y][x], r[y][x], buf_its[y][x], amax)
+            # 把各个Map挂到maps里面
             maps['intensity'].append(buf_its)
             for (color, index) in zip(sorted(maps['colors'].keys()), xrange(4)):
                 maps['colors'][color].append(buf_colors[index])
@@ -41,22 +48,31 @@ class GaussianPyramid:
     def __get_intensity(self, b, g, r):
         return (np.float64(b) + np.float64(g) + np.float64(r)) / 3.
 
+    # bgr 转换成 bgry
     def __get_colors(self, b, g, r, i, amax):
+        # 小于 amax 的 1/10 的直接抑制为0
         b, g, r = map(lambda x: np.float64(x) if (x > 0.1 * amax) else 0., [b, g, r])
+        # 这个map很精巧，换算都是三个分量按一定规则计算，只是对不同的分量各个分量的顺序不一样，所以用
+        # 同一个 map 搞定了。
         nb, ng, nr = map(lambda x, y, z: max(x - (y + z) / 2., 0.), [b, g, r], [r, r, g], [g, b, b])
         ny = max(((r + g) / 2. - math.fabs(r - g) / 2. - b), 0.)
 
         if i != 0.0:
+            # 这里为什么还要再除以亮度，费解。
             return map(lambda x: x / np.float64(i), [nb, ng, nr, ny])
         else:
             return nb, ng, nr, ny
 
     def __conv_gabor(self, src, theta):
+        # Gabor 是一种小波。返回通过小波滤波的结果
+        # 滤波生成的map是存在总map的 ‘orientations' 键下的。
         kernel = cv.getGaborKernel((8, 8), 4, theta, 8, 1)
         return cv.filter2D(src, cv.CV_32F, kernel)
 
 
 class FeatureMap:
+    # FeatureMap 构造的输入是上面 GaussianPyramid 生成的各种Map，7种（9-2？）尺度，每种包括亮度，色度，
+    # 方向等。
     def __init__(self, srcs):
         self.maps = self.__make_feature_map(srcs)
 
@@ -120,4 +136,5 @@ class SaliencyMap:
     def __make_saliency_map(self, srcs):
         util = Util()
         srcs = map(util.normalize, [srcs[key] for key in srcs.keys()])
+        # 看起来像是把三个Map求平均，或许是三个颜色分量？
         return srcs[0] / 3. + srcs[1] / 3. + srcs[2] / 3.
