@@ -73,6 +73,7 @@ class GaussianPyramid:
 class FeatureMap:
     # FeatureMap 构造的输入是上面 GaussianPyramid 生成的各种Map，7种（9-2？）尺度，每种包括亮度，色度，
     # 方向等。
+    # 这个特征Map的核心似乎就是不同尺度之间相互减，（差求绝对值）, 尺度对比在 cs_index 里存了
     def __init__(self, srcs):
         self.maps = self.__make_feature_map(srcs)
 
@@ -96,10 +97,14 @@ class FeatureMap:
         return maps
 
     def __scale_diff(self, c, s):
+        # 两幅不同尺寸的Map求Diff，把大的Resize成小的。
+        # 本来小的就是大的下采样出来的，现在再下采样，这里的区别在哪里？ FIXME
         c_size = tuple(reversed(c.shape))
+        # 难道是OpenCV表示问题？要把两个维度反过来。。
         return cv.absdiff(c, cv.resize(s, c_size, None, 0, 0, cv.INTER_NEAREST))
 
     def __scale_color_diff(self, (c1, s1), (c2, s2)):
+        # color 的 diff，是两个平面相减再求 diff, b-g, r-y,
         c_size = tuple(reversed(c1.shape))
         return cv.absdiff(c1 - c2, cv.resize(s2 - s1, c_size, None, 0, 0, cv.INTER_NEAREST))
 
@@ -110,10 +115,13 @@ class ConspicuityMap:
 
     def __make_conspicuity_map(self, srcs):
         util = Util()
+        # 把 intensity 平面 resize 到最大，加起来
         intensity = self.__scale_add(map(util.normalize, srcs['intensity']))
+        # 先归一化 再scale_add
         for key in srcs['colors'].keys():
             srcs['colors'][key] = map(util.normalize, srcs['colors'][key])
         color = self.__scale_add([srcs['colors']['bg'][x] + srcs['colors']['ry'][x] for x in xrange(len(srcs['colors']['bg']))])
+        # 方向也是相加
         orientation = np.zeros(intensity.shape)
         for key in srcs['orientations'].keys():
             orientation += self.__scale_add(map(util.normalize, srcs['orientations'][key]))
@@ -131,6 +139,7 @@ class SaliencyMap:
         self.gp = GaussianPyramid(src)
         self.fm = FeatureMap(self.gp.maps)
         self.cm = ConspicuityMap(self.fm.maps)
+        # 先调用 __make_saliency_map 把若干个Map平均到一起， 然后再Resize，貌似是放大到原来尺寸。
         self.map = cv.resize(self.__make_saliency_map(self.cm.maps), tuple(reversed(src.shape[0:2])))
 
     def __make_saliency_map(self, srcs):
